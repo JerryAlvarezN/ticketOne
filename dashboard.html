@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script type="module" src="https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="text-center">Panel de Tickets</h2>
+        <button id="logoutBtn" class="btn btn-danger float-end">Cerrar Sesión</button>
+        <canvas id="ticketsChart" class="my-4"></canvas>
+        <h4>Lista de Tickets</h4>
+        <input type="text" id="search" class="form-control my-2" placeholder="Buscar tickets...">
+        <ul id="ticketsList" class="list-group"></ul>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+        import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
+        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD-0aj9CjcphnHaEJTpZSlI8pHkvFeXXLs",
+            authDomain: "iabd-b77e0.firebaseapp.com",
+            projectId: "iabd-b77e0",
+            storageBucket: "iabd-b77e0.firebasestorage.app",
+            messagingSenderId: "169936353095",
+            appId: "1:169936353095:web:4a2dfede9ee503ccdabe62"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const logoutBtn = document.getElementById("logoutBtn");
+        const ticketsList = document.getElementById("ticketsList");
+        const searchInput = document.getElementById("search");
+        let ticketsData = [];
+
+        // Redirigir si el usuario no está autenticado
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                window.location.href = "login.html";
+            } else {
+                loadTickets(user.uid);
+            }
+        });
+
+        // Cerrar sesión
+        logoutBtn.addEventListener("click", () => {
+            signOut(auth).then(() => {
+                window.location.href = "login.html";
+            });
+        });
+
+        // Cargar tickets del usuario autenticado
+        async function loadTickets(userId) {
+            const q = query(collection(db, "tickets"), where("createdBy", "==", userId));
+            const querySnapshot = await getDocs(q);
+            ticketsData = [];
+            ticketsList.innerHTML = "";
+
+            querySnapshot.forEach((doc) => {
+                const ticket = doc.data();
+                ticketsData.push(ticket);
+                const li = document.createElement("li");
+                li.classList.add("list-group-item");
+                li.textContent = `${ticket.title} - Estado: ${ticket.status} - Prioridad: ${ticket.priority}`;
+                ticketsList.appendChild(li);
+            });
+            updateChart();
+        }
+
+        // Filtrar tickets en tiempo real
+        searchInput.addEventListener("input", (e) => {
+            const searchValue = e.target.value.toLowerCase();
+            ticketsList.innerHTML = "";
+            ticketsData.filter(ticket => ticket.title.toLowerCase().includes(searchValue))
+                .forEach(ticket => {
+                    const li = document.createElement("li");
+                    li.classList.add("list-group-item");
+                    li.textContent = `${ticket.title} - Estado: ${ticket.status} - Prioridad: ${ticket.priority}`;
+                    ticketsList.appendChild(li);
+                });
+        });
+
+        // Generar gráfico de tickets
+        function updateChart() {
+            const ctx = document.getElementById("ticketsChart").getContext("2d");
+            const statusCount = { abierto: 0, "en proceso": 0, cerrado: 0 };
+
+            ticketsData.forEach(ticket => {
+                statusCount[ticket.status]++;
+            });
+
+            new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: ["Abiertos", "En Proceso", "Cerrados"],
+                    datasets: [{
+                        label: "Cantidad de Tickets",
+                        data: [statusCount.abierto, statusCount["en proceso"], statusCount.cerrado],
+                        backgroundColor: ["red", "yellow", "green"]
+                    }]
+                }
+            });
+        }
+    </script>
+</body>
+</html>

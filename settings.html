@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuración</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script type="module" src="https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="text-center">Configuración</h2>
+        <button id="logoutBtn" class="btn btn-danger float-end">Cerrar Sesión</button>
+        
+        <h4>Preferencias</h4>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="notifications">
+            <label class="form-check-label" for="notifications">Recibir Notificaciones</label>
+        </div>
+        
+        <h4 class="mt-4">Tema</h4>
+        <select id="theme" class="form-control my-2">
+            <option value="light">Claro</option>
+            <option value="dark">Oscuro</option>
+        </select>
+        
+        <button id="saveSettings" class="btn btn-primary w-100">Guardar Configuración</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+        import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD-0aj9CjcphnHaEJTpZSlI8pHkvFeXXLs",
+            authDomain: "iabd-b77e0.firebaseapp.com",
+            projectId: "iabd-b77e0",
+            storageBucket: "iabd-b77e0.appspot.com",
+            messagingSenderId: "169936353095",
+            appId: "1:169936353095:web:4a2dfede9ee503ccdabe62"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const logoutBtn = document.getElementById("logoutBtn");
+        const saveSettingsBtn = document.getElementById("saveSettings");
+        const notificationsCheckbox = document.getElementById("notifications");
+        const themeSelect = document.getElementById("theme");
+        let userId = null;
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = "login.html";
+            } else {
+                userId = user.uid;
+                loadSettings();
+            }
+        });
+
+        logoutBtn.addEventListener("click", () => {
+            signOut(auth).then(() => {
+                window.location.href = "login.html";
+            });
+        });
+
+        async function loadSettings() {
+            const userDoc = await getDoc(doc(db, "settings", userId));
+            if (userDoc.exists()) {
+                const data = userDoc.data();
+                notificationsCheckbox.checked = data.notifications || false;
+                themeSelect.value = data.theme || "light";
+                applyTheme(data.theme || "light");
+            }
+        }
+
+        saveSettingsBtn.addEventListener("click", async () => {
+            const settings = {
+                notifications: notificationsCheckbox.checked,
+                theme: themeSelect.value
+            };
+            await setDoc(doc(db, "settings", userId), settings, { merge: true });
+            applyTheme(settings.theme);
+            alert("Configuración guardada con éxito");
+        });
+
+        function applyTheme(theme) {
+            if (theme === "dark") {
+                document.body.style.backgroundColor = "#343a40";
+                document.body.style.color = "white";
+            } else {
+                document.body.style.backgroundColor = "#f8f9fa";
+                document.body.style.color = "black";
+            }
+        }
+    </script>
+</body>
+</html>
